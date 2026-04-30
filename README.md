@@ -2,15 +2,16 @@
 
 A lightweight Python service for storing and syncing text key-value data across devices.
 
-## Scope (V1)
+## Scope (Current)
 
 - Single user
 - Text key-value upsert and fetch
 - Incremental pull for sync
+- File sync (upload, download, metadata, soft delete)
 - SQLite storage
 - Bearer token authentication
 
-Not included in V1: file sync, realtime location upload, push notifications, multi-user auth.
+Not included: realtime location upload, push notifications, multi-user auth.
 
 ## Quick Start
 
@@ -25,6 +26,8 @@ Not included in V1: file sync, realtime location upload, push notifications, mul
 ```powershell
 $env:APP_TOKEN="replace-with-strong-token"
 $env:DB_PATH="./data/omnisync.db"
+$env:FILE_STORAGE_PATH="./data/files"
+$env:FILE_MAX_BYTES="52428800"
 $env:HOST="127.0.0.1"
 $env:PORT="8000"
 ```
@@ -40,9 +43,15 @@ $env:PORT="8000"
 - `GET /healthz`
 - `POST /v1/items/{key}`
 - `GET /v1/items/{key}`
- - `GET /v1/text/{key}` (JSON, value only)
- - `GET /v1/text/{key}.txt` (plain text)
+- `GET /v1/text/{key}` (JSON, value only)
+- `GET /v1/text/{key}.txt` (plain text)
 - `GET /v1/items?since=<ISO8601>&limit=<1..500>`
+- `PUT /v1/files/{key}` (multipart upload, optional `expected_version` query)
+- `GET /v1/files/{key}` (download binary)
+- `GET /v1/files/{key}/meta`
+- `DELETE /v1/files/{key}` (soft delete, optional `expected_version` query)
+- `GET /v1/files?since=<ISO8601>&limit=<1..500>`
+- `POST /v1/files/gc?grace_seconds=<seconds>&limit=<n>`
 
 `POST /v1/items/{key}` request:
 
@@ -61,6 +70,45 @@ $env:PORT="8000"
 - `404`: item not found
 - `409`: version conflict
 - `500`: internal error
+
+## File Sync Example
+
+Upload:
+
+```bash
+curl -X PUT "http://127.0.0.1:8000/v1/files/avatar" \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@./avatar.png"
+```
+
+Download:
+
+```bash
+curl -H "Authorization: Bearer <token>" \
+  "http://127.0.0.1:8000/v1/files/avatar" \
+  --output avatar.png
+```
+
+File meta:
+
+```bash
+curl -H "Authorization: Bearer <token>" \
+  "http://127.0.0.1:8000/v1/files/avatar/meta"
+```
+
+Soft delete:
+
+```bash
+curl -X DELETE "http://127.0.0.1:8000/v1/files/avatar" \
+  -H "Authorization: Bearer <token>"
+```
+
+Run garbage collection:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/v1/files/gc?grace_seconds=0" \
+  -H "Authorization: Bearer <token>"
+```
 
 ## Debian 12 Deployment Guide
 
@@ -99,6 +147,8 @@ Edit /opt/omnisync/deploy/ENV and set at least:
 
   APP_TOKEN=<your_generated_token>
   DB_PATH=/opt/omnisync/data/omnisync.db
+  FILE_STORAGE_PATH=/opt/omnisync/data/files
+  FILE_MAX_BYTES=52428800
   HOST=127.0.0.1
   PORT=8000
   LOG_LEVEL=info
