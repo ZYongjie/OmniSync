@@ -40,6 +40,8 @@ $env:PORT="8000"
 - `GET /healthz`
 - `POST /v1/items/{key}`
 - `GET /v1/items/{key}`
+ - `GET /v1/text/{key}` (JSON, value only)
+ - `GET /v1/text/{key}.txt` (plain text)
 - `GET /v1/items?since=<ISO8601>&limit=<1..500>`
 
 `POST /v1/items/{key}` request:

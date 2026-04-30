@@ -1,10 +1,16 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import PlainTextResponse
 
 from app.core.container import get_item_service
 from app.core.security import require_bearer_token
-from app.schemas.item import ItemListResponse, ItemResponse, ItemUpsertRequest
+from app.schemas.item import (
+    ItemListResponse,
+    ItemResponse,
+    ItemUpsertRequest,
+    ItemValueResponse,
+)
 from app.services.item_service import ItemService
 from app.storage.sqlite_repo import VersionConflictError
 
@@ -74,6 +80,53 @@ def get_item(
     if item is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     return _to_item_response(item)
+
+
+
+
+# Register .txt route first for correct matching
+@router.get(
+    "/text/{key:path}.txt",
+    response_class=PlainTextResponse,
+    dependencies=[Depends(require_bearer_token)],
+)
+def get_text_value_plain(
+    key: str,
+    service: ItemService = Depends(get_item_service),
+) -> PlainTextResponse:
+    item = service.get(key)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    return PlainTextResponse(content=item.value)
+
+@router.get(
+    "/text/{key}",
+    response_model=ItemValueResponse,
+    dependencies=[Depends(require_bearer_token)],
+)
+def get_text_value(
+    key: str,
+    service: ItemService = Depends(get_item_service),
+) -> ItemValueResponse:
+    item = service.get(key)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    return ItemValueResponse(value=item.value)
+
+
+@router.get(
+    "/text/{key:path}.txt",
+    response_class=PlainTextResponse,
+    dependencies=[Depends(require_bearer_token)],
+)
+def get_text_value_plain(
+    key: str,
+    service: ItemService = Depends(get_item_service),
+) -> PlainTextResponse:
+    item = service.get(key)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    return PlainTextResponse(content=item.value)
 
 
 @router.get(

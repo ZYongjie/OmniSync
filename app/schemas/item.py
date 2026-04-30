@@ -14,6 +14,10 @@ class ItemResponse(BaseModel):
     updated_at: str
 
 
+class ItemValueResponse(BaseModel):
+    value: str
+
+
 class ItemListResponse(BaseModel):
     items: list[ItemResponse]
     next_since: str | None

@@ -51,6 +51,36 @@ def test_upsert_and_get(monkeypatch, tmp_path):
     assert get_resp.json()["value"] == "hello"
 
 
+def test_get_text_value_json(monkeypatch, tmp_path):
+    client = _build_client(monkeypatch, tmp_path)
+
+    upsert_resp = client.post(
+        "/v1/items/clipboard",
+        headers=_auth_header(),
+        json={"value": "hello"},
+    )
+    assert upsert_resp.status_code == 200
+
+    value_resp = client.get("/v1/text/clipboard", headers=_auth_header())
+    assert value_resp.status_code == 200
+    assert value_resp.json() == {"value": "hello"}
+
+def test_get_text_value_plain(monkeypatch, tmp_path):
+    client = _build_client(monkeypatch, tmp_path)
+
+    upsert_resp = client.post(
+        "/v1/items/clipboard",
+        headers=_auth_header(),
+        json={"value": "hello text"},
+    )
+    assert upsert_resp.status_code == 200
+
+    text_resp = client.get("/v1/text/clipboard.txt", headers=_auth_header())
+    assert text_resp.status_code == 200
+    assert text_resp.text == "hello text"
+    assert text_resp.headers["content-type"].startswith("text/plain")
+
+
 def test_update_and_conflict(monkeypatch, tmp_path):
     client = _build_client(monkeypatch, tmp_path)
 

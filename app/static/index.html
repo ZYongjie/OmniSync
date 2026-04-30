@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OmniSync 控制台</title>
+    <style>
+      :root {
+        --bg: #f3efe7;
+        --panel: #fffdf8;
+        --text: #1f2a35;
+        --muted: #5f6b76;
+        --line: #d9d1c4;
+        --accent: #c0582f;
+        --accent-strong: #8e3f21;
+        --ok: #1f8a59;
+        --error: #b23434;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 10% 10%, #f8d6b3 0%, transparent 35%),
+          radial-gradient(circle at 90% 20%, #d7ead8 0%, transparent 40%),
+          var(--bg);
+        min-height: 100vh;
+      }
+
+      .wrap {
+        max-width: 980px;
+        margin: 28px auto;
+        padding: 0 16px 24px;
+      }
+
+      .hero {
+        margin-bottom: 16px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 30px;
+        letter-spacing: 0.5px;
+      }
+
+      .subtitle {
+        margin-top: 6px;
+        color: var(--muted);
+      }
+
+      .grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 16px;
+        box-shadow: 0 8px 24px rgba(35, 30, 20, 0.08);
+      }
+
+      .card h2 {
+        margin: 0 0 12px;
+        font-size: 18px;
+      }
+
+      .fields {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .full {
+        grid-column: 1 / -1;
+      }
+
+      label {
+        display: block;
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      input,
+      textarea,
+      button {
+        font: inherit;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 9px 11px;
+        background: #fff;
+      }
+
+      textarea {
+        min-height: 90px;
+        resize: vertical;
+      }
+
+      .actions {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .toggle input {
+        width: auto;
+        margin: 0;
+      }
+
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 9px 14px;
+        cursor: pointer;
+        color: #fff;
+        background: var(--accent);
+        transition: background 0.2s ease;
+      }
+
+      button:hover {
+        background: var(--accent-strong);
+      }
+
+      .subtle {
+        background: #607284;
+      }
+
+      .subtle:hover {
+        background: #465565;
+      }
+
+      .output {
+        margin-top: 10px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        padding: 10px;
+        min-height: 90px;
+        background: #fff;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .ok {
+        color: var(--ok);
+      }
+
+      .error {
+        color: var(--error);
+      }
+
+      @media (max-width: 760px) {
+        .fields {
+          grid-template-columns: 1fr;
+        }
+
+        h1 {
+          font-size: 25px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="hero">
+        <h1>OmniSync 数据控制台</h1>
+        <div class="subtitle">用于设置数据（POST）和获取数据（GET）</div>
+      </div>
+
+      <div class="grid">
+        <section class="card">
+          <h2>认证与基础配置</h2>
+          <div class="fields">
+            <div class="full">
+              <label for="token">Bearer Token</label>
+              <input id="token" type="password" placeholder="例如: test 或你的 APP_TOKEN" />
+            </div>
+            <div>
+              <label for="baseUrl">API Base URL</label>
+              <input id="baseUrl" type="text" value="" placeholder="默认同源，例如 http://127.0.0.1:8000" />
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>设置数据</h2>
+          <div class="fields">
+            <div>
+              <label for="setKey">Key</label>
+              <input id="setKey" type="text" placeholder="例如: clipboard" />
+            </div>
+            <div>
+              <label for="expectedVersion">Expected Version (可选)</label>
+              <input id="expectedVersion" type="number" min="1" placeholder="例如: 1" />
+            </div>
+            <div class="full">
+              <label for="setValue">Value</label>
+              <textarea id="setValue" placeholder="输入文本内容"></textarea>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="setBtn">提交设置</button>
+          </div>
+          <div id="setOut" class="output"></div>
+        </section>
+
+        <section class="card">
+          <h2>获取数据</h2>
+          <div class="fields">
+            <div>
+              <label for="getKey">Key</label>
+              <input id="getKey" type="text" placeholder="例如: clipboard" />
+            </div>
+            <div>
+              <label for="valueOnly">显示选项</label>
+              <label class="toggle">
+                <input id="valueOnly" type="checkbox" />
+                <span>只获取 value</span>
+              </label>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="getBtn">按 Key 获取</button>
+            <button id="listBtn" class="subtle">获取列表</button>
+          </div>
+          <div id="getOut" class="output"></div>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      function apiBase() {
+        const v = document.getElementById("baseUrl").value.trim();
+        return v || window.location.origin;
+      }
+
+      function tokenHeader() {
+        const token = document.getElementById("token").value.trim();
+        return token ? { Authorization: "Bearer " + token } : {};
+      }
+
+      async function parseBody(response) {
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          return await response.json();
+        }
+        return await response.text();
+      }
+
+      async function toText(response) {
+        const data = await parseBody(response);
+        return typeof data === "string" ? data : JSON.stringify(data, null, 2);
+      }
+
+      function setOut(elId, ok, text) {
+        const el = document.getElementById(elId);
+        el.textContent = text;
+        el.className = "output " + (ok ? "ok" : "error");
+      }
+
+      document.getElementById("setBtn").addEventListener("click", async () => {
+        const key = document.getElementById("setKey").value.trim();
+        const value = document.getElementById("setValue").value;
+        const expectedVersionRaw = document.getElementById("expectedVersion").value.trim();
+
+        if (!key) {
+          setOut("setOut", false, "请先填写 Key");
+          return;
+        }
+
+        const payload = { value };
+        if (expectedVersionRaw) {
+          payload.expected_version = Number(expectedVersionRaw);
+        }
+
+        const url = apiBase() + "/v1/items/" + encodeURIComponent(key);
+        try {
+          const resp = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...tokenHeader(),
+            },
+            body: JSON.stringify(payload),
+          });
+          const bodyText = await toText(resp);
+          setOut("setOut", resp.ok, "HTTP " + resp.status + "\n" + bodyText);
+        } catch (err) {
+          setOut("setOut", false, "请求失败: " + (err && err.message ? err.message : String(err)));
+        }
+      });
+
+      document.getElementById("getBtn").addEventListener("click", async () => {
+        const key = document.getElementById("getKey").value.trim();
+        const valueOnly = document.getElementById("valueOnly").checked;
+        if (!key) {
+          setOut("getOut", false, "请先填写 Key");
+          return;
+        }
+
+        const url = apiBase() + "/v1/items/" + encodeURIComponent(key);
+        try {
+          const resp = await fetch(url, {
+            method: "GET",
+            headers: {
+              ...tokenHeader(),
+            },
+          });
+          const body = await parseBody(resp);
+          let bodyText;
+          if (resp.ok && valueOnly && body && typeof body === "object" && "value" in body) {
+            bodyText = String(body.value ?? "");
+          } else {
+            bodyText = typeof body === "string" ? body : JSON.stringify(body, null, 2);
+          }
+          setOut("getOut", resp.ok, "HTTP " + resp.status + "\n" + bodyText);
+        } catch (err) {
+          setOut("getOut", false, "请求失败: " + (err && err.message ? err.message : String(err)));
+        }
+      });
+
+      document.getElementById("listBtn").addEventListener("click", async () => {
+        const url = apiBase() + "/v1/items";
+        try {
+          const resp = await fetch(url, {
+            method: "GET",
+            headers: {
+              ...tokenHeader(),
+            },
+          });
+          const bodyText = await toText(resp);
+          setOut("getOut", resp.ok, "HTTP " + resp.status + "\n" + bodyText);
+        } catch (err) {
+          setOut("getOut", false, "请求失败: " + (err && err.message ? err.message : String(err)));
+        }
+      });
+    </script>
+  </body>
+</html>
