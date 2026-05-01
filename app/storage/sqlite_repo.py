@@ -389,6 +389,33 @@ class SqliteRepo:
             return None
         return self._row_to_file(row)
 
+    def hard_delete_file(
+        self, key: str, expected_version: int | None = None
+    ) -> FileRecord | None:
+        with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            existing = conn.execute(
+                """
+                SELECT file_key, original_name, content_type, size_bytes,
+                       checksum_sha256, storage_path, version, created_at, updated_at, deleted_at
+                FROM files
+                WHERE file_key = ?
+                """,
+                (key,),
+            ).fetchone()
+            if existing is None:
+                conn.rollback()
+                return None
+
+            if expected_version is not None and existing["version"] != expected_version:
+                conn.rollback()
+                raise VersionConflictError(current_version=existing["version"])
+
+            conn.execute("DELETE FROM files WHERE file_key = ?", (key,))
+            conn.commit()
+
+        return self._row_to_file(existing)
+
     def list_deleted_files_before(self, before: str, limit: int) -> list[FileRecord]:
         with self._connect() as conn:
             rows = conn.execute(
@@ -411,6 +438,19 @@ class SqliteRepo:
                 SELECT 1
                 FROM files
                 WHERE storage_path = ? AND deleted_at IS NULL
+                LIMIT 1
+                """,
+                (storage_path,),
+            ).fetchone()
+        return row is not None
+
+    def is_storage_path_referenced(self, storage_path: str) -> bool:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT 1
+                FROM files
+                WHERE storage_path = ?
                 LIMIT 1
                 """,
                 (storage_path,),

@@ -201,6 +201,29 @@
         background: #465565;
       }
 
+      .file-delete-btn {
+        border: 0;
+        border-radius: 8px;
+        padding: 6px 10px;
+        cursor: pointer;
+        color: #fff;
+        background: #b23434;
+      }
+
+      .file-delete-btn:hover {
+        background: #902626;
+      }
+
+      .file-actions {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .file-check {
+        width: auto;
+      }
+
       .ok {
         color: var(--ok);
       }
@@ -305,7 +328,18 @@
           <div class="actions">
             <button id="uploadBtn">上传文件</button>
             <button id="downloadBtn" class="subtle">下载文件</button>
+            <button id="deleteBtn" class="subtle">删除单个</button>
             <button id="listFilesBtn" class="subtle">获取可下载文件列表</button>
+            <button id="deleteSelectedBtn" class="subtle">删除勾选项</button>
+          </div>
+          <div class="fields">
+            <div class="full">
+              <label for="batchDeleteKeys">批量删除 Key（可选，逗号/空格/换行分隔）</label>
+              <textarea id="batchDeleteKeys" placeholder="例如:\navatar\nreport-2026\nbackup-file"></textarea>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="batchDeleteBtn" class="subtle">批量删除输入 Key</button>
           </div>
           <div id="fileOut" class="output"></div>
           <div id="fileListOut" class="file-list">暂无数据</div>
@@ -375,6 +409,48 @@
         return { fileName, size: blob.size };
       }
 
+      async function deleteFileByKey(key, expectedVersionRaw) {
+        const url = new URL(apiBase() + "/v1/files/" + encodeURIComponent(key));
+        if (expectedVersionRaw) {
+          url.searchParams.set("expected_version", expectedVersionRaw);
+        }
+
+        const resp = await fetch(url.toString(), {
+          method: "DELETE",
+          headers: {
+            ...tokenHeader(),
+          },
+        });
+
+        const body = await parseBody(resp);
+        const bodyText = typeof body === "string" ? body : JSON.stringify(body, null, 2);
+        if (!resp.ok) {
+          throw new Error("key=" + key + " | HTTP " + resp.status + "\n" + bodyText);
+        }
+        return bodyText;
+      }
+
+      function splitKeys(raw) {
+        return (raw || "")
+          .split(/[\s,]+/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+
+      async function deleteKeysBatch(keys, expectedVersionRaw) {
+        const uniqueKeys = Array.from(new Set(keys));
+        const results = [];
+        for (const key of uniqueKeys) {
+          try {
+            await deleteFileByKey(key, expectedVersionRaw);
+            results.push("OK  " + key);
+          } catch (err) {
+            results.push("ERR " + (err && err.message ? err.message : String(err)));
+          }
+        }
+        return { total: uniqueKeys.length, lines: results };
+      }
+
       function renderFileList(files) {
         const out = document.getElementById("fileListOut");
         out.innerHTML = "";
@@ -397,10 +473,18 @@
           left.appendChild(keyLine);
           left.appendChild(meta);
 
-          const btn = document.createElement("button");
-          btn.className = "file-download-btn";
-          btn.textContent = "下载";
-          btn.addEventListener("click", async () => {
+          const actions = document.createElement("div");
+          actions.className = "file-actions";
+
+          const check = document.createElement("input");
+          check.type = "checkbox";
+          check.className = "file-check";
+          check.dataset.fileKey = file.key;
+
+          const downloadBtn = document.createElement("button");
+          downloadBtn.className = "file-download-btn";
+          downloadBtn.textContent = "下载";
+          downloadBtn.addEventListener("click", async () => {
             try {
               const result = await downloadFileByKey(file.key);
               setOut("fileOut", true, "下载成功: " + result.fileName + " (" + result.size + " bytes)");
@@ -409,8 +493,30 @@
             }
           });
 
+          const deleteBtn = document.createElement("button");
+          deleteBtn.className = "file-delete-btn";
+          deleteBtn.textContent = "删除";
+          deleteBtn.addEventListener("click", async () => {
+            if (!window.confirm("确认硬删除文件 key=" + file.key + " ?\n删除后不可恢复。")) {
+              return;
+            }
+            try {
+              await deleteFileByKey(file.key, document.getElementById("fileExpectedVersion").value.trim());
+              setOut("fileOut", true, "删除成功: " + file.key);
+              row.remove();
+              if (!out.children.length) {
+                out.textContent = "没有可下载文件";
+              }
+            } catch (err) {
+              setOut("fileOut", false, "请求失败: " + (err && err.message ? err.message : String(err)));
+            }
+          });
+
           row.appendChild(left);
-          row.appendChild(btn);
+          actions.appendChild(check);
+          actions.appendChild(downloadBtn);
+          actions.appendChild(deleteBtn);
+          row.appendChild(actions);
           out.appendChild(row);
         }
       }
@@ -555,6 +661,24 @@
         }
       });
 
+      document.getElementById("deleteBtn").addEventListener("click", async () => {
+        const key = document.getElementById("fileKey").value.trim();
+        const expectedVersionRaw = document.getElementById("fileExpectedVersion").value.trim();
+        if (!key) {
+          setOut("fileOut", false, "请先填写文件 Key");
+          return;
+        }
+        if (!window.confirm("确认硬删除文件 key=" + key + " ?\n删除后不可恢复。")) {
+          return;
+        }
+        try {
+          await deleteFileByKey(key, expectedVersionRaw);
+          setOut("fileOut", true, "删除成功: " + key);
+        } catch (err) {
+          setOut("fileOut", false, "请求失败: " + (err && err.message ? err.message : String(err)));
+        }
+      });
+
       document.getElementById("listFilesBtn").addEventListener("click", async () => {
         const url = apiBase() + "/v1/files?limit=500";
         try {
@@ -575,6 +699,49 @@
           const downloadableFiles = allFiles.filter((f) => !f.is_deleted);
           renderFileList(downloadableFiles);
           setOut("fileOut", true, "已加载可下载文件: " + downloadableFiles.length + " 个");
+        } catch (err) {
+          setOut("fileOut", false, "请求失败: " + (err && err.message ? err.message : String(err)));
+        }
+      });
+
+      document.getElementById("deleteSelectedBtn").addEventListener("click", async () => {
+        const expectedVersionRaw = document.getElementById("fileExpectedVersion").value.trim();
+        const checked = Array.from(document.querySelectorAll("#fileListOut .file-check:checked"));
+        const keys = checked.map((node) => node.dataset.fileKey).filter(Boolean);
+
+        if (!keys.length) {
+          setOut("fileOut", false, "请先在文件列表中勾选要删除的文件");
+          return;
+        }
+        if (!window.confirm("确认硬删除已勾选的 " + keys.length + " 个文件?\n删除后不可恢复。")) {
+          return;
+        }
+
+        try {
+          const result = await deleteKeysBatch(keys, expectedVersionRaw);
+          setOut("fileOut", true, "批量删除完成: " + result.total + " 个\n" + result.lines.join("\n"));
+          document.getElementById("listFilesBtn").click();
+        } catch (err) {
+          setOut("fileOut", false, "请求失败: " + (err && err.message ? err.message : String(err)));
+        }
+      });
+
+      document.getElementById("batchDeleteBtn").addEventListener("click", async () => {
+        const expectedVersionRaw = document.getElementById("fileExpectedVersion").value.trim();
+        const raw = document.getElementById("batchDeleteKeys").value;
+        const keys = splitKeys(raw);
+        if (!keys.length) {
+          setOut("fileOut", false, "请先输入要删除的文件 Key");
+          return;
+        }
+        if (!window.confirm("确认硬删除输入的 " + keys.length + " 个文件?\n删除后不可恢复。")) {
+          return;
+        }
+
+        try {
+          const result = await deleteKeysBatch(keys, expectedVersionRaw);
+          setOut("fileOut", true, "批量删除完成: " + result.total + " 个\n" + result.lines.join("\n"));
+          document.getElementById("listFilesBtn").click();
         } catch (err) {
           setOut("fileOut", false, "请求失败: " + (err && err.message ? err.message : String(err)));
         }

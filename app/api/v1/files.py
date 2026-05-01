@@ -5,7 +5,12 @@ from fastapi.responses import FileResponse
 
 from app.core.container import get_file_service
 from app.core.security import require_bearer_token
-from app.schemas.file import FileGcResponse, FileListResponse, FileMetaResponse
+from app.schemas.file import (
+    FileDeleteResponse,
+    FileGcResponse,
+    FileListResponse,
+    FileMetaResponse,
+)
 from app.services.file_service import EmptyFileError, FileService, FileTooLargeError
 from app.storage.sqlite_repo import VersionConflictError
 
@@ -110,16 +115,16 @@ def download_file(
 
 @router.delete(
     "/files/{key}",
-    response_model=FileMetaResponse,
+    response_model=FileDeleteResponse,
     dependencies=[Depends(require_bearer_token)],
 )
 def delete_file(
     key: str,
     expected_version: int | None = Query(default=None, ge=1),
     service: FileService = Depends(get_file_service),
-) -> FileMetaResponse:
+) -> FileDeleteResponse:
     try:
-        record = service.soft_delete(key=key, expected_version=expected_version)
+        record = service.hard_delete(key=key, expected_version=expected_version)
     except VersionConflictError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -131,7 +136,7 @@ def delete_file(
 
     if record is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
-    return _to_meta_response(record)
+    return FileDeleteResponse(key=record.key, hard_deleted=True)
 
 
 @router.post(

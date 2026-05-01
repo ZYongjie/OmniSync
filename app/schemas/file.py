@@ -23,3 +23,8 @@ class FileGcResponse(BaseModel):
     scanned: int
     deleted_records: int
     deleted_blobs: int
+
+
+class FileDeleteResponse(BaseModel):
+    key: str
+    hard_deleted: bool

@@ -7,7 +7,7 @@ A lightweight Python service for storing and syncing text key-value data across 
 - Single user
 - Text key-value upsert and fetch
 - Incremental pull for sync
-- File sync (upload, download, metadata, soft delete)
+- File sync (upload, download, metadata, hard delete)
 - SQLite storage
 - Bearer token authentication
 
@@ -49,7 +49,7 @@ $env:PORT="8000"
 - `PUT /v1/files/{key}` (multipart upload, optional `expected_version` query)
 - `GET /v1/files/{key}` (download binary)
 - `GET /v1/files/{key}/meta`
-- `DELETE /v1/files/{key}` (soft delete, optional `expected_version` query)
+- `DELETE /v1/files/{key}` (hard delete, optional `expected_version` query)
 - `GET /v1/files?since=<ISO8601>&limit=<1..500>`
 - `POST /v1/files/gc?grace_seconds=<seconds>&limit=<n>`
 
@@ -59,6 +59,15 @@ $env:PORT="8000"
 {
   "value": "text payload",
   "expected_version": 1
+}
+```
+
+`DELETE /v1/files/{key}` response:
+
+```json
+{
+  "key": "avatar",
+  "hard_deleted": true
 }
 ```
 
@@ -96,7 +105,7 @@ curl -H "Authorization: Bearer <token>" \
   "http://127.0.0.1:8000/v1/files/avatar/meta"
 ```
 
-Soft delete:
+Hard delete:
 
 ```bash
 curl -X DELETE "http://127.0.0.1:8000/v1/files/avatar" \

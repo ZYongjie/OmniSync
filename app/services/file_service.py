@@ -89,6 +89,18 @@ class FileService:
     def soft_delete(self, key: str, expected_version: int | None) -> FileRecord | None:
         return self.repo.soft_delete_file(key=key, expected_version=expected_version)
 
+    def hard_delete(self, key: str, expected_version: int | None) -> FileRecord | None:
+        record = self.repo.hard_delete_file(key=key, expected_version=expected_version)
+        if record is None:
+            return None
+
+        # Keep deduplicated blob only when still referenced by active file records.
+        if not self.repo.is_storage_path_referenced_by_active(record.storage_path):
+            blob_path = self.resolve_disk_path(record.storage_path)
+            blob_path.unlink(missing_ok=True)
+
+        return record
+
     def list_since(self, since: str | None, limit: int) -> list[FileRecord]:
         return self.repo.list_files_since(since=since, limit=limit)
 
