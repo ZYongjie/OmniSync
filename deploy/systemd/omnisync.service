@@ -4,11 +4,11 @@ After=network.target
 
 [Service]
 Type=simple
-User=omnisync
-Group=omnisync
-WorkingDirectory=/opt/omnisync
-EnvironmentFile=/opt/omnisync/deploy/ENV
-ExecStart=/opt/omnisync/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
+User=yongjie
+Group=yongjie
+WorkingDirectory=/home/yongjie/OmniSync
+EnvironmentFile=/home/yongjie/OmniSync/deploy/.env
+ExecStart=/home/yongjie/OmniSync/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
 Restart=always
 RestartSec=3
 StandardOutput=journal
