@@ -257,6 +257,10 @@
             <div class="full">
               <label for="token">Bearer Token</label>
               <input id="token" type="password" placeholder="例如: test 或你的 APP_TOKEN" />
+              <label class="toggle" style="margin-top: 8px;">
+                <input id="rememberToken" type="checkbox" />
+                <span>记住 Token（本地浏览器）</span>
+              </label>
             </div>
             <div>
               <label for="baseUrl">API Base URL</label>
@@ -348,15 +352,46 @@
     </div>
 
     <script>
+      const TOKEN_STORAGE_KEY = "omnisync.token";
+
       function apiBase() {
         const v = document.getElementById("baseUrl").value.trim();
         return v || window.location.href.replace(/\/+$/, "");
+      }
+
+      function loadSavedToken() {
+        const tokenInput = document.getElementById("token");
+        const remember = document.getElementById("rememberToken");
+        const saved = localStorage.getItem(TOKEN_STORAGE_KEY);
+        if (saved) {
+          tokenInput.value = saved;
+          remember.checked = true;
+        }
+      }
+
+      function bindTokenPersistence() {
+        const tokenInput = document.getElementById("token");
+        const remember = document.getElementById("rememberToken");
+
+        function syncTokenStorage() {
+          if (remember.checked) {
+            localStorage.setItem(TOKEN_STORAGE_KEY, tokenInput.value.trim());
+          } else {
+            localStorage.removeItem(TOKEN_STORAGE_KEY);
+          }
+        }
+
+        remember.addEventListener("change", syncTokenStorage);
+        tokenInput.addEventListener("input", syncTokenStorage);
       }
 
       function tokenHeader() {
         const token = document.getElementById("token").value.trim();
         return token ? { Authorization: "Bearer " + token } : {};
       }
+
+      loadSavedToken();
+      bindTokenPersistence();
 
       async function parseBody(response) {
         const contentType = response.headers.get("content-type") || "";
